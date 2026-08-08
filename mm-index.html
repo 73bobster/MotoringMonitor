@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MotoringMonitor</title>
+<meta name="theme-color" content="#20241F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#F6F3EC; --paper-2:#EFEAE0; --ink:#20241F; --ink-soft:#5B5B54;
+    --line:#D9D3C4; --rust:#A8451F; --petrol:#1B5560; --danger:#A8451F; --ok:#3E6B3A;
+    --time-bar:#7FA8B0; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;}
+  #app{max-width:480px;margin:0 auto;padding:20px 16px 60px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;margin:0;letter-spacing:-0.01em;}
+  .sub{color:var(--ink-soft);font-size:12px;margin:2px 0 0;}
+  .global-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .app-name{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;}
+  .account-btn{background:var(--paper-2);border:none;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;}
+  .section-label{margin:0 0 10px;font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;position:relative;}
+  .card.hero{background:var(--ink);border-color:var(--ink);color:var(--paper);}
+  .card-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .card-title{font-size:14px;font-weight:700;}
+  .card-reg{font-family:'DM Mono',monospace;font-size:10px;color:var(--ink-soft);font-weight:400;}
+  .badge{font-size:9px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;}
+  .badge-lease{background:#DCE7E5;color:#153F47;}
+  .badge-fin{background:#F0E6D9;color:#8A5A1F;}
+  .badge-owned{background:var(--paper-2);color:var(--ink-soft);}
+  .status-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .pill{font-size:9px;font-weight:600;padding:3px 7px;border-radius:8px;}
+  .pill-ok{background:#DDEAD9;color:#3E6B3A;}
+  .pill-warn{background:#F4E1D8;color:#7A3117;}
+  .pill-neutral{background:var(--paper-2);color:var(--ink-soft);}
+  .costs-row{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);}
+  .add-btn{border:1.5px dashed #B4B2A9;border-radius:var(--radius);padding:11px;text-align:center;font-size:11px;font-weight:600;color:var(--ink-soft);margin-bottom:18px;cursor:pointer;}
+  .pts-ok{font-size:10px;font-weight:600;color:var(--ok);}
+  .pts-warn{font-size:10px;font-weight:600;color:var(--danger);}
+  label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin:10px 0 4px;}
+  input,select,textarea{width:100%;padding:9px 11px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-family:'Inter',sans-serif;font-size:14px;color:var(--ink);}
+  textarea{resize:vertical;}
+  button{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;border:none;border-radius:9px;padding:11px 16px;cursor:pointer;}
+  .btn-primary{background:var(--ink);color:var(--paper);width:100%;margin-top:12px;}
+  .btn-danger{background:var(--danger);color:#fff;width:100%;margin-top:12px;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1.5px solid var(--line);width:100%;margin-top:8px;}
+  .link-btn{background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;padding:0;cursor:pointer;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .error-text{color:var(--danger);font-size:12px;margin-top:8px;}
+  .tabs{display:flex;gap:5px;margin-bottom:16px;overflow-x:auto;}
+  .tab{font-size:10px;font-weight:600;padding:6px 10px;border-radius:7px;white-space:nowrap;cursor:pointer;}
+  .tab-active{background:var(--ink);color:var(--paper);}
+  .tab-inactive{background:var(--paper-2);color:var(--ink-soft);}
+  .vheader{display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding-bottom:12px;border-bottom:1.5px solid var(--line);}
+  .odo{font-family:'DM Mono',monospace;font-size:26px;}
+  .odo-unit{font-size:10px;opacity:0.7;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .stat{background:rgba(255,255,255,0.08);border-radius:9px;padding:9px 11px;}
+  .stat-label{margin:0;font-size:9px;text-transform:uppercase;opacity:0.65;}
+  .stat-val{margin:2px 0 0;font-family:'DM Mono',monospace;font-size:14px;}
+  .bar-track{height:8px;border-radius:5px;background:rgba(255,255,255,0.15);overflow:hidden;margin:8px 0 3px;}
+  .bar-fill{height:100%;border-radius:5px;}
+  .bar-caption{display:flex;justify-content:space-between;font-size:10px;opacity:0.75;}
+  .popover{position:absolute;top:100%;right:10px;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(32,36,31,0.2);width:190px;z-index:20;overflow:hidden;}
+  .popover-item{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--paper-2);font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .popover-item:last-child{border-bottom:none;}
+  .link-list{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
+  .link-row{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;border-bottom:1px solid var(--paper-2);font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;}
+  .link-row:last-child{border-bottom:none;}
+  .link-group-label{margin:14px 0 6px;font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
+  .history-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--paper-2);font-size:12px;}
+  .empty{color:var(--ink-soft);font-size:12px;padding:6px 0;}
+  .radio-row{display:flex;gap:6px;margin-bottom:10px;}
+  .radio-opt{flex:1;text-align:center;padding:8px;border-radius:8px;border:1.5px solid var(--line);font-size:11px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .radio-opt.selected{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .sync-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:10px;}
+  .note-box{background:var(--paper-2);border-radius:8px;padding:9px 11px;font-size:11px;color:var(--ink-soft);margin:8px 0;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;}
+  .theme-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0;}
+  .theme-swatch{height:36px;border-radius:8px;cursor:pointer;border:2px solid transparent;}
+  .theme-swatch.selected{border-color:var(--ink);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="auth-screen" class="screen">
+    <h1>MotoringMonitor</h1>
+    <p class="sub">Sign in to sync across all your devices.</p>
+    <div class="card">
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="you@example.com">
+      <label>Password</label>
+      <input id="auth-password" type="password" placeholder="At least 6 characters">
+      <button class="btn-primary" onclick="handleSignIn()">Sign in</button>
+      <button class="btn-ghost" onclick="handleSignUp()">Create account</button>
+      <p id="auth-error" class="error-text"></p>
+    </div>
+  </div>
+
+  <div id="onboard-screen" class="screen">
+    <h1>Welcome</h1>
+    <p class="sub">Let's start with you — just a nickname, nothing else required.</p>
+    <div class="card">
+      <label>Your nickname</label>
+      <input id="onboard-nickname" placeholder="e.g. Robert">
+      <button class="btn-primary" onclick="saveOnboardPerson()">Continue</button>
+    </div>
+  </div>
+
+  <div id="home-screen" class="screen">
+    <div class="global-header">
+      <span class="app-name">MotoringMonitor</span>
+      <button class="account-btn" onclick="showAccount()">&#128100;</button>
+    </div>
+
+    <p class="section-label">Vehicles</p>
+    <div id="vehicle-list"></div>
+    <div class="add-btn" onclick="showAddVehicle()">+ Add a vehicle</div>
+
+    <p class="section-label">People</p>
+    <div id="people-list"></div>
+    <div class="add-btn" onclick="showAddPerson()">+ Add a person</div>
+
+    <p class="sync-note" id="sync-note"></p>
+  </div>
+
+  <div id="add-vehicle-screen" class="screen">
+    <div class="vheader"><h1>Vehicle</h1></div>
+    <div class="card">
+      <label>Registration</label>
+      <input id="v-reg" placeholder="e.g. FD70 XKR">
+      <div class="note-box">Live DVLA lookup isn't connected yet (needs an API key + small proxy). Enter details manually for now.</div>
+      <label>Nickname</label>
+      <input id="v-nickname" placeholder="e.g. The Puma">
+      <label>Make</label><input id="v-make" placeholder="e.g. Ford">
+      <label>Model</label><input id="v-model" placeholder="e.g. Puma">
+      <label>Fuel type</label>
+      <select id="v-fuel"><option>Petrol</option><option>Diesel</option><option>Electric</option><option>Hybrid</option></select>
+      <label>mpg (or mi/kWh for electric)</label><input id="v-mpg" type="number" step="0.1">
+
+      <label>Ownership type</label>
+      <div class="radio-row" id="v-ownership-row">
+        <div class="radio-opt" data-val="leased" onclick="selectOwnership('leased')">Leased</div>
+        <div class="radio-opt" data-val="financed" onclick="selectOwnership('financed')">Financed</div>
+        <div class="radio-opt" data-val="owned" onclick="selectOwnership('owned')">Owned</div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="v-company"><label style="margin:0;">This is a company car</label></div>
+
+      <label>Date acquired</label><input id="v-acquired" type="date">
+      <label>Upfront cost (&pound;)</label><input id="v-upfront" type="number">
+
+      <div id="v-finance-fields" style="display:none;">
+        <label>Monthly repayment (&pound;)</label><input id="v-monthly" type="number">
+        <label>Term start</label><input id="v-term-start" type="date">
+        <label>Term end</label><input id="v-term-end" type="date">
+        <div id="v-cap-fields">
+          <label>Capped miles</label><input id="v-cap" type="number">
+          <label>Cost per excess mile (&pound;)</label><input id="v-excess-cost" type="number" step="0.01">
+        </div>
+      </div>
+      <div id="v-owned-fields" style="display:none;">
+        <label>Purchase price (&pound;)</label><input id="v-purchase-price" type="number">
+        <label>Purchase date</label><input id="v-purchase-date" type="date">
+      </div>
+
+      <label>Primary driver</label>
+      <select id="v-primary-driver"></select>
+
+      <button class="btn-primary" onclick="saveVehicleForm()">Save vehicle</button>
+      <button class="btn-ghost" onclick="showHome()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="vehicle-detail-screen" class="screen">
+    <div class="vheader">
+      <span id="vd-nickname" style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;"></span>
+      <span id="vd-reg" class="card-reg" style="background:var(--paper-2);padding:3px 8px;border-radius:6px;"></span>
+    </div>
+    <div class="tabs">
+      <span class="tab" data-tab="overview" onclick="showVTab('overview')">Overview</span>
+      <span class="tab" data-tab="ownership" onclick="showVTab('ownership')">Ownership</span>
+      <span class="tab" data-tab="running" onclick="showVTab('running')">Running</span>
+      <span class="tab" data-tab="legal" onclick="showVTab('legal')">Legal</span>
+      <span class="tab" data-tab="insurance" onclick="showVTab('insurance')">Insurance</span>
+      <span class="tab" data-tab="links" onclick="showVTab('links')">Links</span>
+    </div>
+    <div id="vtab-content"></div>
+    <button class="link-btn" onclick="showHome()">&larr; Back to home</button>
+  </div>
+
+  <div id="log-reading-screen" class="screen">
+    <div class="vheader"><h1>Log a reading</h1></div>
+    <div class="card">
+      <label>Date</label><input id="reading-date" type="date">
+      <label>Odometer mileage</label><input id="reading-mileage" type="number">
+      <button class="btn-primary" onclick="saveReading()">Save reading</button>
+      <button class="btn-ghost" onclick="backFromModal()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="add-cost-screen" class="screen">
+    <div class="vheader"><h1>Add a cost</h1></div>
+    <div class="card">
+      <label>Category</label>
+      <select id="cost-category"><option value="tyres">Tyres</option><option value="servicing">Servicing</option><option value="repairs">Repairs</option><option value="other">Other</option></select>
+      <label>Date</label><input id="cost-date" type="date">
+      <label>Cost (&pound;)</label><input id="cost-amount" type="number">
+      <label>Note (optional)</label><input id="cost-note">
+      <button class="btn-primary" onclick="saveCost()">Save cost</button>
+      <button class="btn-ghost" onclick="backFromModal()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="add-person-screen" class="screen">
+    <div class="vheader"><h1>Add a person</h1></div>
+    <div class="card">
+      <label>First name / nickname</label><input id="p-nickname">
+      <label>Email (optional)</label><input id="p-email" type="email">
+      <label>Mobile (optional, contact only)</label><input id="p-mobile">
+      <button class="btn-primary" onclick="savePersonForm()">Add</button>
+      <button class="btn-ghost" onclick="showHome()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="person-detail-screen" class="screen">
+    <div class="vheader"><span id="pd-nickname" style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;"></span></div>
+    <div class="card">
+      <p class="section-label">Licence points &amp; accidents</p>
+      <div class="note-box">Entirely optional — for your own reference only. Never used in any calculation or alert elsewhere in the app.</div>
+      <div id="pd-records"></div>
+      <div class="add-btn" onclick="showAddRecord()">+ Log offence / accident</div>
+    </div>
+    <button class="link-btn" onclick="showHome()">&larr; Back to home</button>
+  </div>
+
+  <div id="add-record-screen" class="screen">
+    <div class="vheader"><h1>Log offence / accident</h1></div>
+    <div class="card">
+      <label>Type</label>
+      <select id="rec-kind" onchange="toggleRecordFields()"><option value="offence">Offence</option><option value="accident">Accident</option></select>
+
+      <div id="rec-offence-fields">
+        <label>Offence code</label><input id="rec-code" placeholder="e.g. SP30">
+        <label>Points</label><input id="rec-points" type="number">
+      </div>
+      <label>Date</label><input id="rec-date" type="date" onchange="updateCountdownDefaults()">
+      <label>Licence clear date</label><input id="rec-licence-clear" type="date">
+      <label>Insurance disclosure date</label><input id="rec-insurance-disclosure" type="date">
+      <div class="note-box">Two separate countdowns — DVLA licence rules and insurer disclosure rules differ. Insurance date defaults to +5 years but always double-check against your own policy.</div>
+
+      <div id="rec-accident-fields" style="display:none;">
+        <label>Description</label><textarea id="rec-desc" rows="2"></textarea>
+        <label>Cost (&pound;)</label><input id="rec-cost" type="number">
+        <div class="checkbox-row"><input type="checkbox" id="rec-at-fault"><label style="margin:0;">At fault</label></div>
+        <label>Claim reference</label><input id="rec-claim-ref">
+      </div>
+
+      <button class="btn-primary" onclick="saveRecord()">Save</button>
+      <button class="btn-ghost" onclick="backFromModal()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="account-screen" class="screen">
+    <div class="vheader"><h1>Account</h1></div>
+
+    <div class="card">
+      <p class="section-label">Signed in as</p>
+      <p id="account-email" style="font-size:14px;"></p>
+      <p class="sub" id="account-role"></p>
+      <button class="btn-ghost" onclick="handleSignOut()">Sign out</button>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Household</p>
+      <p class="sub">Share this code so family members can join your household:</p>
+      <p id="account-joincode" style="font-family:'DM Mono',monospace;font-size:20px;letter-spacing:2px;text-align:center;background:var(--paper-2);padding:10px;border-radius:8px;"></p>
+      <label>Join another household</label>
+      <input id="join-code-input" placeholder="Enter code">
+      <button class="btn-ghost" onclick="handleJoinHousehold()">Join</button>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Appearance</p>
+      <div class="theme-grid" id="theme-grid"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">Your data</p>
+      <button class="btn-ghost" onclick="DataLayer.exportCSV()">Export data (CSV)</button>
+    </div>
+
+    <div class="card">
+      <p class="section-label">About</p>
+      <p class="sub">MotoringMonitor — one place for vehicle mileage, costs, legal status and driving records for your household.</p>
+    </div>
+    <div class="card">
+      <p class="section-label">Terms &amp; conditions</p>
+      <p class="sub">For personal/household use. No PII beyond first names and optional contact details is collected. Data is stored in a private Supabase project accessible only to your household.</p>
+    </div>
+
+    <div class="card" style="border-color:var(--danger);">
+      <p class="section-label" style="color:var(--danger);">Danger zone</p>
+      <button class="btn-ghost" style="border-color:var(--danger);color:var(--danger);" onclick="handleLeaveHousehold()">Leave this household</button>
+    </div>
+
+    <button class="link-btn" onclick="showHome()">&larr; Back</button>
+  </div>
+
+</div>
+
+<script src="sync.js"></script>
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+const THEMES = ['#20241F','#A8451F','#1B5560','#3E6B3A','#7A3117','#5B5B54','#153F47','#8A5A1F','#6B3E5C','#2E4A6B'];
+const EWMA_ALPHA = 0.2;
+
+let cache = { people:[], vehicles:[], readings:[], runningCosts:[], drivingRecords:[], namedDrivers:[] };
+let activeVehicleId = null;
+let activePersonId = null;
+let activeVTab = 'overview';
+let modalReturnScreen = 'home-screen';
+let selectedOwnership = 'leased';
+let openPopoverId = null;
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  closeAnyPopover();
+}
+function showHome(){ showScreen('home-screen'); renderHome(); }
+
+async function handleSignIn(){
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const { error } = await DataLayer.signIn(email, password);
+  document.getElementById('auth-error').textContent = error ? error.message : '';
+}
+async function handleSignUp(){
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const { error } = await DataLayer.signUp(email, password);
+  document.getElementById('auth-error').textContent = error ? error.message : 'Account created — check your email to confirm, then sign in above.';
+}
+async function handleSignOut(){ await DataLayer.signOut(); showScreen('auth-screen'); }
+
+async function onAuthed(user){
+  if(!user){ showScreen('auth-screen'); return; }
+  cache = await DataLayer.refreshFromCloud();
+  if(cache.people.length === 0){ showScreen('onboard-screen'); return; }
+  showHome();
+}
+
+async function saveOnboardPerson(){
+  const nickname = document.getElementById('onboard-nickname').value.trim();
+  if(!nickname) return;
+  const email = DataLayer.getCurrentUserEmail();
+  await DataLayer.addPerson({ nickname, email });
+  cache = await DataLayer.refreshFromCloud();
+  showHome();
+}
+
+function fmt(n,d){ d=d||0; return Number(n||0).toLocaleString('en-GB',{maximumFractionDigits:d,minimumFractionDigits:d}); }
+function fmtGBP(n){ return '£'+Number(n||0).toLocaleString('en-GB',{maximumFractionDigits:0}); }
+function monthsBetween(days){ return Math.round((days||0)/30.44); }
+
+function vehicleReadings(vid){ return cache.readings.filter(function(r){return r.vehicle_id===vid;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);}); }
+function vehicleCosts(vid){ return cache.runningCosts.filter(function(c){return c.vehicle_id===vid;}); }
+
+function ewmaPace(readings){
+  if(readings.length<2) return null;
+  let pace=null;
+  for(let i=1;i<readings.length;i++){
+    const days=(new Date(readings[i].date)-new Date(readings[i-1].date))/86400000;
+    if(days<=0) continue;
+    const rate=(readings[i].mileage-readings[i-1].mileage)/days;
+    pace = pace===null ? rate : (EWMA_ALPHA*rate + (1-EWMA_ALPHA)*pace);
+  }
+  return pace;
+}
+
+function vehicleStats(v){
+  const readings = vehicleReadings(v.id);
+  const latest = readings.length ? readings[readings.length-1] : null;
+  const currentMileage = latest ? latest.mileage : 0;
+
+  let totalDays=0, daysElapsed=0, daysRemaining=0;
+  if(v.term_start && v.term_end){
+    const start=new Date(v.term_start), end=new Date(v.term_end), today=new Date();
+    totalDays = Math.max(1, Math.round((end-start)/86400000));
+    daysElapsed = Math.min(totalDays, Math.max(0, Math.round((today-start)/86400000)));
+    daysRemaining = Math.max(0, totalDays-daysElapsed);
+  }
+  const recentPace = ewmaPace(readings);
+  const lifetimeRate = daysElapsed>0 ? currentMileage/daysElapsed : 0;
+  const rate = recentPace!==null ? recentPace : lifetimeRate;
+  const forecastTotal = currentMileage + rate*daysRemaining;
+  const variance = v.capped_miles ? forecastTotal - v.capped_miles : 0;
+  const excessCost = variance>0 ? variance*(v.cost_per_excess_mile||0) : 0;
+  const pctUsed = v.capped_miles ? Math.min(150,(currentMileage/v.capped_miles)*100) : 0;
+  const pctTime = totalDays>0 ? Math.min(100,(daysElapsed/totalDays)*100) : 0;
+
+  const costs = vehicleCosts(v.id);
+  const runningTotal = costs.reduce(function(s,c){return s+Number(c.cost||0);},0);
+  const monthsElapsedCount = daysElapsed>0 ? daysElapsed/30.44 : 0;
+  const repaymentsToDate = (v.upfront_cost||0) + (v.monthly_repayment||0)*monthsElapsedCount;
+  const totalTermMonths = totalDays>0 ? totalDays/30.44 : 0;
+  const stillToPay = Math.max(0, (v.monthly_repayment||0) * Math.max(0,totalTermMonths-monthsElapsedCount));
+
+  let valuation = null;
+  if(v.ownership_type==='owned' && v.purchase_price && v.purchase_date){
+    if(v.valuation_override){ valuation = Number(v.valuation_override); }
+    else{
+      const ageYears = (new Date()-new Date(v.purchase_date))/(365.25*86400000);
+      let val = ageYears<=1 ? v.purchase_price*(1-0.20*ageYears) : v.purchase_price*0.80*Math.pow(0.88, ageYears-1);
+      const expectedMiles = 8000*ageYears;
+      const mileDiff = currentMileage - expectedMiles;
+      const adjPct = Math.max(-15, Math.min(15, -0.0005*mileDiff));
+      val = val*(1+adjPct/100);
+      valuation = Math.max(v.purchase_price*0.10, val);
+    }
+  }
+
+  return { currentMileage:currentMileage, totalDays:totalDays, daysElapsed:daysElapsed, daysRemaining:daysRemaining,
+    recentPace:recentPace, lifetimeRate:lifetimeRate, forecastTotal:forecastTotal, variance:variance,
+    excessCost:excessCost, pctUsed:pctUsed, pctTime:pctTime, runningTotal:runningTotal,
+    repaymentsToDate:repaymentsToDate, stillToPay:stillToPay, valuation:valuation, readings:readings, costs:costs };
+}
+
+function ownershipBadge(v){
+  if(v.ownership_type==='leased') return { cls:'badge-lease', text:'LEASE TO '+shortDate(v.term_end) };
+  if(v.ownership_type==='financed') return { cls:'badge-fin', text:'FINANCED TO '+shortDate(v.term_end) };
+  return { cls:'badge-owned', text:'OWNED' };
+}
+function shortDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}); }
+function fullDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+
+function statusPill(status, dueDate, label){
+  const today = new Date();
+  const due = dueDate ? new Date(dueDate) : null;
+  const soon = due && (due-today)/86400000 < 30;
+  if(!due) return '<span class="pill pill-neutral">'+label+' —</span>';
+  if(soon) return '<span class="pill pill-warn">&#9888; '+label+' '+shortDate(dueDate)+'</span>';
+  return '<span class="pill pill-ok">&#10003; '+label+' valid</span>';
+}
+
+function renderHome(){
+  const vlist = document.getElementById('vehicle-list');
+  vlist.innerHTML = cache.vehicles.map(function(v){
+    const s = vehicleStats(v);
+    const ob = ownershipBadge(v);
+    const costLine = v.ownership_type==='owned'
+      ? 'Est. value '+fmtGBP(s.valuation)
+      : 'Ownership '+fmtGBP(s.repaymentsToDate)+' &middot; '+fmtGBP(s.stillToPay)+' left';
+    return '<div class="card" id="vcard-'+v.id+'">'
+      +'<div onclick="toggleVehiclePopover(\''+v.id+'\')" style="cursor:pointer;">'
+      +'<div class="card-top"><span class="card-title">'+v.nickname+' <span class="card-reg">'+(v.registration||'')+'</span></span>'
+      +'<span class="badge '+ob.cls+'">'+ob.text+'</span></div>'
+      +'<div class="status-row">'+statusPill(v.tax_status,v.tax_due_date,'Tax')+statusPill(v.mot_status,v.mot_due_date,'MOT')
+      +'<span class="pill pill-neutral">INS '+shortDate(v.insurance_renewal_date)+'</span></div>'
+      +'<div class="costs-row"><span>'+costLine+'</span><span>Running '+fmtGBP(s.runningTotal)+'</span></div>'
+      +'</div></div>';
+  }).join('') || '<p class="empty">No vehicles yet.</p>';
+
+  const plist = document.getElementById('people-list');
+  plist.innerHTML = cache.people.map(function(p){
+    const records = cache.drivingRecords.filter(function(r){return r.person_id===p.id && r.kind==='offence';});
+    const activePts = records.filter(function(r){return !r.licence_clear_date || new Date(r.licence_clear_date)>new Date();});
+    const totalPts = activePts.reduce(function(s,r){return s+(r.points||0);},0);
+    const primaryOn = cache.vehicles.filter(function(v){return v.primary_driver_id===p.id;}).map(function(v){return v.nickname;});
+    const namedOn = cache.namedDrivers.filter(function(nd){return nd.person_id===p.id;}).map(function(nd){
+      const v = cache.vehicles.find(function(x){return x.id===nd.vehicle_id;}); return v?v.nickname:null;
+    }).filter(Boolean);
+    let subLine = '';
+    if(primaryOn.length) subLine += 'Primary: '+primaryOn.join(', ');
+    if(namedOn.length) subLine += (subLine?' &middot; ':'')+'Named: '+namedOn.join(', ');
+    return '<div class="card" id="pcard-'+p.id+'"><div onclick="togglePersonPopover(\''+p.id+'\')" style="cursor:pointer;">'
+      +'<div class="card-top" style="margin-bottom:2px;"><span class="card-title">'+p.nickname+'</span>'
+      +'<span class="'+(totalPts>0?'pts-warn':'pts-ok')+'">'+totalPts+' pts</span></div>'
+      +'<p class="sub" style="margin:2px 0 0;">'+subLine+'</p></div></div>';
+  }).join('') || '<p class="empty">No people yet.</p>';
+
+  updateSyncNote();
+}
+
+function closeAnyPopover(){
+  document.querySelectorAll('.popover').forEach(function(p){p.remove();});
+  openPopoverId = null;
+}
+function toggleVehiclePopover(vid){
+  if(openPopoverId===vid){ closeAnyPopover(); return; }
+  closeAnyPopover();
+  openPopoverId = vid;
+  const card = document.getElementById('vcard-'+vid);
+  const pop = document.createElement('div');
+  pop.className='popover';
+  pop.innerHTML = '<div class="popover-item" onclick="event.stopPropagation();openLogReading(\''+vid+'\')">&#128205; Log a reading</div>'
+    +'<div class="popover-item" onclick="event.stopPropagation();openAddCost(\''+vid+'\')">&#128176; Add a cost</div>'
+    +'<div class="popover-item" onclick="event.stopPropagation();openVehicleDetail(\''+vid+'\')">&#128295; Review &amp; edit</div>';
+  card.appendChild(pop);
+}
+function togglePersonPopover(pid){
+  if(openPopoverId===pid){ closeAnyPopover(); return; }
+  closeAnyPopover();
+  openPopoverId = pid;
+  const card = document.getElementById('pcard-'+pid);
+  const pop = document.createElement('div');
+  pop.className='popover';
+  pop.innerHTML = '<div class="popover-item" onclick="event.stopPropagation();openPersonDetail(\''+pid+'\')">&#128203; View points &amp; offences</div>';
+  card.appendChild(pop);
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.popover') && !e.target.closest('.card')) closeAnyPopover();
+});
+
+function updateSyncNote(){
+  const pending = DataLayer.pendingCount();
+  const note = document.getElementById('sync-note');
+  if(!navigator.onLine) note.textContent = pending>0 ? 'Offline — '+pending+' change(s) waiting to sync' : 'Offline — showing last synced data';
+  else note.textContent = pending>0 ? 'Syncing '+pending+' change(s)...' : 'All synced';
+}
+window.addEventListener('online', updateSyncNote);
+window.addEventListener('offline', updateSyncNote);
+
+function showAddVehicle(){
+  closeAnyPopover();
+  document.getElementById('v-primary-driver').innerHTML = cache.people.map(function(p){return '<option value="'+p.id+'">'+p.nickname+'</option>';}).join('');
+  selectOwnership('leased');
+  showScreen('add-vehicle-screen');
+}
+function selectOwnership(val){
+  selectedOwnership = val;
+  document.querySelectorAll('#v-ownership-row .radio-opt').forEach(function(el){ el.classList.toggle('selected', el.dataset.val===val); });
+  document.getElementById('v-finance-fields').style.display = (val==='leased'||val==='financed') ? 'block':'none';
+  document.getElementById('v-cap-fields').style.display = val==='leased' ? 'block':'none';
+  document.getElementById('v-owned-fields').style.display = val==='owned' ? 'block':'none';
+}
+async function saveVehicleForm(){
+  const fields = {
+    nickname: document.getElementById('v-nickname').value || 'My car',
+    registration: document.getElementById('v-reg').value,
+    make: document.getElementById('v-make').value,
+    model: document.getElementById('v-model').value,
+    fuel_type: document.getElementById('v-fuel').value,
+    mpg: parseFloat(document.getElementById('v-mpg').value) || null,
+    ownership_type: selectedOwnership,
+    company_car: document.getElementById('v-company').checked,
+    date_acquired: document.getElementById('v-acquired').value || null,
+    upfront_cost: parseFloat(document.getElementById('v-upfront').value) || 0,
+    primary_driver_id: document.getElementById('v-primary-driver').value || null,
+  };
+  if(selectedOwnership==='leased' || selectedOwnership==='financed'){
+    fields.monthly_repayment = parseFloat(document.getElementById('v-monthly').value) || 0;
+    fields.term_start = document.getElementById('v-term-start').value || null;
+    fields.term_end = document.getElementById('v-term-end').value || null;
+  }
+  if(selectedOwnership==='leased'){
+    fields.capped_miles = parseFloat(document.getElementById('v-cap').value) || null;
+    fields.cost_per_excess_mile = parseFloat(document.getElementById('v-excess-cost').value) || null;
+  }
+  if(selectedOwnership==='owned'){
+    fields.purchase_price = parseFloat(document.getElementById('v-purchase-price').value) || null;
+    fields.purchase_date = document.getElementById('v-purchase-date').value || null;
+  }
+  await DataLayer.saveVehicle(fields);
+  cache = await DataLayer.refreshFromCloud();
+  showHome();
+}
+
+function openVehicleDetail(vid){
+  closeAnyPopover();
+  activeVehicleId = vid;
+  activeVTab = 'overview';
+  const v = cache.vehicles.find(function(x){return x.id===vid;});
+  document.getElementById('vd-nickname').textContent = v.nickname;
+  document.getElementById('vd-reg').textContent = v.registration || '';
+  showScreen('vehicle-detail-screen');
+  renderVTabs();
+  renderVTabContent();
+}
+function renderVTabs(){
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.classList.toggle('tab-active', t.dataset.tab===activeVTab);
+    t.classList.toggle('tab-inactive', t.dataset.tab!==activeVTab);
+  });
+}
+function showVTab(tab){ activeVTab=tab; renderVTabs(); renderVTabContent(); }
+
+function renderVTabContent(){
+  const v = cache.vehicles.find(function(x){return x.id===activeVehicleId;});
+  const s = vehicleStats(v);
+  const el = document.getElementById('vtab-content');
+
+  if(activeVTab==='overview'){
+    let bars = '';
+    if(v.capped_miles){
+      bars = '<p style="margin:10px 0 2px;font-size:9px;opacity:0.7;">Mileage used</p>'
+        +'<div class="bar-track"><div class="bar-fill" style="width:'+Math.min(100,s.pctUsed)+'%;background:'+(s.variance>0?'#D97B5A':'#5FAE86')+'"></div></div>'
+        +'<div class="bar-caption"><span>'+fmt(s.currentMileage)+' used</span><span>'+fmt(v.capped_miles)+' capped</span></div>'
+        +'<p style="margin:10px 0 2px;font-size:9px;opacity:0.7;">Time elapsed</p>'
+        +'<div class="bar-track"><div class="bar-fill" style="width:'+s.pctTime+'%;background:var(--time-bar)"></div></div>'
+        +'<div class="bar-caption"><span>'+monthsBetween(s.daysElapsed)+' months in</span><span>'+monthsBetween(s.totalDays)+' month term</span></div>';
+      if(s.pctUsed > s.pctTime+5) bars += '<p style="margin:8px 0 0;font-size:10px;opacity:0.7;">Using miles faster than the term is passing.</p>';
+    }
+    el.innerHTML = '<div class="card hero">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="odo">'+fmt(s.currentMileage)+'</span><span class="odo-unit">miles now</span></div>'
+      +bars
+      +'<div class="stat-grid" style="margin-top:12px;">'
+      +'<div class="stat"><p class="stat-label">Forecast</p><p class="stat-val">'+fmt(s.forecastTotal)+' mi</p></div>'
+      +'<div class="stat"><p class="stat-label">Est. excess</p><p class="stat-val">'+fmtGBP(s.excessCost)+'</p></div></div></div>'
+      +'<div class="add-btn" onclick="openLogReading(\''+v.id+'\')">&#128205; Log a reading</div>'
+      +'<p class="sub" style="text-align:center;">Lifetime '+fmt(s.lifetimeRate,1)+' mi/day &middot; Recent '+(s.recentPace===null?'n/a':fmt(s.recentPace,1)+' mi/day')+'</p>'
+      +'<p class="section-label" style="margin-top:16px;">History</p>'
+      +'<div class="card">'+(s.readings.slice().reverse().map(function(r){return '<div class="history-row"><span>'+fullDate(r.date)+'</span><span>'+fmt(r.mileage)+' mi</span></div>';}).join('') || '<p class="empty">No readings yet.</p>')+'</div>';
+  }
+
+  if(activeVTab==='ownership'){
+    if(v.ownership_type!=='owned'){
+      el.innerHTML = '<div class="card"><p class="section-label">Ownership &amp; cost basis</p>'
+        +'<div class="costs-row"><span>Monthly repayment</span><span>'+fmtGBP(v.monthly_repayment)+'</span></div>'
+        +'<div class="costs-row"><span>Term</span><span>'+fullDate(v.term_start)+' &rarr; '+fullDate(v.term_end)+'</span></div>'
+        +(v.ownership_type==='leased' ? '<div class="costs-row"><span>Capped miles</span><span>'+fmt(v.capped_miles)+'</span></div>'
+          +'<div class="costs-row"><span>Cost per excess mile</span><span>'+fmtGBP(v.cost_per_excess_mile)+'</span></div>' : '')
+        +'<div class="stat-grid" style="margin-top:12px;">'
+        +'<div class="stat" style="background:var(--paper-2);"><p class="stat-label" style="opacity:1;">To date</p><p class="stat-val" style="color:var(--ink);">'+fmtGBP(s.repaymentsToDate)+'</p></div>'
+        +'<div class="stat" style="background:var(--paper-2);"><p class="stat-label" style="opacity:1;">Still to pay</p><p class="stat-val" style="color:var(--ink);">'+fmtGBP(s.stillToPay)+'</p></div></div></div>';
+    } else {
+      el.innerHTML = '<div class="card"><p class="section-label">Ownership &amp; cost basis</p>'
+        +'<div class="costs-row"><span>Purchase price</span><span>'+fmtGBP(v.purchase_price)+'</span></div>'
+        +'<div class="costs-row"><span>Purchase date</span><span>'+fullDate(v.purchase_date)+'</span></div>'
+        +'<div class="stat" style="background:var(--paper-2);margin-top:12px;"><p class="stat-label" style="opacity:1;">Estimated value</p><p class="stat-val" style="color:var(--ink);font-size:18px;">'+fmtGBP(s.valuation)+'</p></div>'
+        +'<p class="sub">Rough estimate from purchase price, age and mileage. Ignores condition, service history, damage. Overridable.</p></div>';
+    }
+  }
+
+  if(activeVTab==='running'){
+    el.innerHTML = '<div class="card"><p class="section-label">Estimated fuel/electricity</p>'
+      +'<p class="sub">'+(v.mpg ? 'Calculated from mileage &divide; '+(v.fuel_type==='Electric'?'mi-per-kWh':'mpg')+' &times; current price. Live price feed not yet connected — using a placeholder rate.' : 'Set mpg/mi-per-kWh on this vehicle to enable an estimate.')+'</p></div>'
+      +'<div class="card"><p class="section-label">Running costs <span style="font-weight:400;color:var(--ink-soft);font-size:11px;">'+fmtGBP(s.runningTotal)+' total</span></p>'
+      +(s.costs.slice().reverse().map(function(c){return '<div class="history-row"><span>'+c.category+' &middot; '+fullDate(c.date)+'</span><span>'+fmtGBP(c.cost)+'</span></div>';}).join('') || '<p class="empty">No costs logged yet.</p>')
+      +'<div class="add-btn" onclick="openAddCost(\''+v.id+'\')" style="margin-top:10px;margin-bottom:0;">+ Add a running cost</div></div>';
+  }
+
+  if(activeVTab==='legal'){
+    el.innerHTML = '<div class="card"><p class="section-label">Legal status</p>'
+      +'<div class="note-box">Manual entry for now — live DVLA VES verification needs an API key and a small proxy function (not yet connected).</div>'
+      +'<label>Tax status</label><input id="edit-tax-status" value="'+(v.tax_status||'')+'" placeholder="e.g. Valid">'
+      +'<label>Tax due date</label><input id="edit-tax-due" type="date" value="'+(v.tax_due_date||'')+'">'
+      +'<label>MOT status</label><input id="edit-mot-status" value="'+(v.mot_status||'')+'" placeholder="e.g. Valid">'
+      +'<label>MOT due date</label><input id="edit-mot-due" type="date" value="'+(v.mot_due_date||'')+'">'
+      +'<button class="btn-primary" onclick="saveLegalEdit(\''+v.id+'\')">Save</button></div>';
+  }
+
+  if(activeVTab==='insurance'){
+    const primary = cache.people.find(function(p){return p.id===v.primary_driver_id;});
+    const namedIds = cache.namedDrivers.filter(function(nd){return nd.vehicle_id===v.id;}).map(function(nd){return nd.person_id;});
+    el.innerHTML = '<div class="card"><p class="section-label">Insurance</p>'
+      +'<label>Insurer</label><input id="edit-insurer" value="'+(v.insurer||'')+'">'
+      +'<label>Policy number</label><input id="edit-policy" value="'+(v.policy_number||'')+'">'
+      +'<label>Annual cost (&pound;)</label><input id="edit-annual" type="number" value="'+(v.insurance_annual_cost||'')+'">'
+      +'<label>Renewal date</label><input id="edit-renewal" type="date" value="'+(v.insurance_renewal_date||'')+'">'
+      +'<label>Claims number</label><input id="edit-claims" value="'+(v.insurance_claims_phone||'')+'">'
+      +'<label>General enquiries number</label><input id="edit-general" value="'+(v.insurance_general_phone||'')+'">'
+      +'<button class="btn-primary" onclick="saveInsuranceEdit(\''+v.id+'\')">Save</button>'
+      +'<p class="section-label" style="margin-top:16px;">Drivers on this policy</p>'
+      +'<div class="costs-row"><span>'+(primary?primary.nickname:'—')+'</span><span class="pill pill-ok" style="background:#DCE7E5;color:#153F47;">Primary</span></div>'
+      +cache.people.filter(function(p){return p.id!==v.primary_driver_id;}).map(function(p){
+        return '<label style="display:flex;align-items:center;gap:8px;font-weight:400;"><input type="checkbox" '+(namedIds.includes(p.id)?'checked':'')+' onchange="toggleNamedDriver(\''+v.id+'\',\''+p.id+'\',this.checked)"> '+p.nickname+'</label>';
+      }).join('')
+      +'</div>';
+  }
+
+  if(activeVTab==='links'){
+    const yr = v.year_of_manufacture || new Date().getFullYear();
+    const atUrl = 'https://www.autotrader.co.uk/car-search?channel=cars&make='+encodeURIComponent(v.make||'')+'&model='+encodeURIComponent(v.model||'')+'&postcode=EH558FD&radius=50&sort=relevance&year-from='+(yr-1)+'&year-to='+(yr+1)+'&minimum-mileage='+Math.max(0,s.currentMileage-2500)+'&maximum-mileage='+(s.currentMileage+2500);
+    el.innerHTML = '<p class="link-group-label">Compare &amp; value</p><div class="link-list">'
+      +'<a class="link-row" href="'+atUrl+'" target="_blank">Compare on AutoTrader <span>&#8599;</span></a>'
+      +'<span class="link-row" style="color:var(--ink-soft);">Value on Motorway <span style="font-size:9px;">soon</span></span></div>'
+      +'<p class="link-group-label">Legal &amp; renewals</p><div class="link-list">'
+      +'<a class="link-row" href="https://www.gov.uk/vehicle-tax" target="_blank">Renew tax (GOV.UK) <span>&#8599;</span></a>'
+      +'<a class="link-row" href="https://www.gov.uk/getting-an-mot" target="_blank">Find an MOT centre <span>&#8599;</span></a></div>'
+      +'<p class="link-group-label">Insurance quotes</p><div class="link-list">'
+      +'<a class="link-row" href="https://www.comparethemarket.com/car-insurance/" target="_blank">Compare the Market <span>&#8599;</span></a>'
+      +'<a class="link-row" href="https://www.moneysupermarket.com/car-insurance/" target="_blank">MoneySuperMarket <span>&#8599;</span></a></div>'
+      +'<p class="sub">Plain links only — no vehicle or personal data is sent.</p>'
+      +'<p class="link-group-label">Sell this car</p><div class="link-list">'
+      +'<span class="link-row" style="color:var(--ink-soft);">webuyanycar <span style="font-size:9px;">soon</span></span>'
+      +'<span class="link-row" style="color:var(--ink-soft);">Motorway <span style="font-size:9px;">soon</span></span></div>';
+  }
+}
+
+async function saveLegalEdit(vid){
+  await DataLayer.saveVehicle({ id:vid,
+    tax_status: document.getElementById('edit-tax-status').value,
+    tax_due_date: document.getElementById('edit-tax-due').value || null,
+    mot_status: document.getElementById('edit-mot-status').value,
+    mot_due_date: document.getElementById('edit-mot-due').value || null,
+  });
+  cache = await DataLayer.refreshFromCloud();
+  renderVTabContent();
+}
+async function saveInsuranceEdit(vid){
+  await DataLayer.saveVehicle({ id:vid,
+    insurer: document.getElementById('edit-insurer').value,
+    policy_number: document.getElementById('edit-policy').value,
+    insurance_annual_cost: parseFloat(document.getElementById('edit-annual').value)||null,
+    insurance_renewal_date: document.getElementById('edit-renewal').value || null,
+    insurance_claims_phone: document.getElementById('edit-claims').value,
+    insurance_general_phone: document.getElementById('edit-general').value,
+  });
+  cache = await DataLayer.refreshFromCloud();
+  renderVTabContent();
+}
+async function toggleNamedDriver(vid, pid, checked){
+  const current = cache.namedDrivers.filter(function(nd){return nd.vehicle_id===vid;}).map(function(nd){return nd.person_id;});
+  const next = checked ? Array.from(new Set(current.concat([pid]))) : current.filter(function(x){return x!==pid;});
+  await DataLayer.setNamedDrivers(vid, next);
+  cache = await DataLayer.refreshFromCloud();
+  renderVTabContent();
+}
+
+function openLogReading(vid){
+  closeAnyPopover(); activeVehicleId=vid; modalReturnScreen = document.querySelector('.screen.active').id;
+  document.getElementById('reading-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('reading-mileage').value='';
+  showScreen('log-reading-screen');
+}
+async function saveReading(){
+  const date = document.getElementById('reading-date').value;
+  const mileage = parseFloat(document.getElementById('reading-mileage').value);
+  if(!date || isNaN(mileage)) return;
+  await DataLayer.addReading(activeVehicleId, date, mileage);
+  cache = await DataLayer.refreshFromCloud();
+  backFromModal();
+}
+function openAddCost(vid){
+  closeAnyPopover(); activeVehicleId=vid; modalReturnScreen = document.querySelector('.screen.active').id;
+  document.getElementById('cost-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('cost-amount').value=''; document.getElementById('cost-note').value='';
+  showScreen('add-cost-screen');
+}
+async function saveCost(){
+  await DataLayer.addRunningCost(activeVehicleId, {
+    category: document.getElementById('cost-category').value,
+    date: document.getElementById('cost-date').value,
+    cost: parseFloat(document.getElementById('cost-amount').value)||0,
+    note: document.getElementById('cost-note').value,
+  });
+  cache = await DataLayer.refreshFromCloud();
+  backFromModal();
+}
+function backFromModal(){
+  if(modalReturnScreen==='vehicle-detail-screen'){ showScreen('vehicle-detail-screen'); renderVTabContent(); }
+  else showHome();
+}
+
+function showAddPerson(){
+  closeAnyPopover();
+  document.getElementById('p-nickname').value=''; document.getElementById('p-email').value=''; document.getElementById('p-mobile').value='';
+  showScreen('add-person-screen');
+}
+async function savePersonForm(){
+  const nickname = document.getElementById('p-nickname').value.trim();
+  if(!nickname) return;
+  await DataLayer.addPerson({ nickname: nickname, email: document.getElementById('p-email').value, mobile: document.getElementById('p-mobile').value });
+  cache = await DataLayer.refreshFromCloud();
+  showHome();
+}
+function openPersonDetail(pid){
+  closeAnyPopover();
+  activePersonId = pid;
+  const p = cache.people.find(function(x){return x.id===pid;});
+  document.getElementById('pd-nickname').textContent = p.nickname;
+  renderPersonRecords();
+  showScreen('person-detail-screen');
+}
+function renderPersonRecords(){
+  const records = cache.drivingRecords.filter(function(r){return r.person_id===activePersonId;});
+  const el = document.getElementById('pd-records');
+  const today = new Date();
+  el.innerHTML = records.map(function(r){
+    const licenceDays = r.licence_clear_date ? Math.max(0,Math.round((new Date(r.licence_clear_date)-today)/86400000)) : null;
+    const insDays = r.insurance_disclosure_date ? Math.max(0,Math.round((new Date(r.insurance_disclosure_date)-today)/86400000)) : null;
+    let sub = '';
+    if(licenceDays!==null) sub += 'Licence clears in '+licenceDays+' days';
+    if(insDays!==null) sub += (sub?' &middot; ':'')+'Insurance disclosure ends in '+insDays+' days';
+    return '<div class="history-row" style="display:block;"><div style="display:flex;justify-content:space-between;">'
+      +'<span><b>'+(r.kind==='offence'?(r.offence_code||'Offence'):'Accident')+'</b> '+fullDate(r.date)+'</span>'
+      +(r.points?'<span>'+r.points+' pts</span>':'')+'</div><p class="sub" style="margin:3px 0 0;">'+sub+'</p></div>';
+  }).join('') || '<p class="empty">Nothing logged.</p>';
+}
+function showAddRecord(){
+  closeAnyPopover();
+  document.getElementById('rec-date').value=new Date().toISOString().slice(0,10);
+  toggleRecordFields();
+  showScreen('add-record-screen');
+  modalReturnScreen='person-detail-screen';
+}
+function toggleRecordFields(){
+  const kind = document.getElementById('rec-kind').value;
+  document.getElementById('rec-offence-fields').style.display = kind==='offence'?'block':'none';
+  document.getElementById('rec-accident-fields').style.display = kind==='accident'?'block':'none';
+}
+function updateCountdownDefaults(){
+  const date = document.getElementById('rec-date').value;
+  if(!date) return;
+  const d = new Date(date);
+  const insurance = new Date(d); insurance.setFullYear(insurance.getFullYear()+5);
+  document.getElementById('rec-insurance-disclosure').value = insurance.toISOString().slice(0,10);
+}
+async function saveRecord(){
+  const kind = document.getElementById('rec-kind').value;
+  const fields = {
+    kind: kind, date: document.getElementById('rec-date').value,
+    licence_clear_date: document.getElementById('rec-licence-clear').value || null,
+    insurance_disclosure_date: document.getElementById('rec-insurance-disclosure').value || null,
+  };
+  if(kind==='offence'){
+    fields.offence_code = document.getElementById('rec-code').value;
+    fields.points = parseInt(document.getElementById('rec-points').value)||0;
+  } else {
+    fields.description = document.getElementById('rec-desc').value;
+    fields.cost = parseFloat(document.getElementById('rec-cost').value)||0;
+    fields.at_fault = document.getElementById('rec-at-fault').checked;
+    fields.claim_reference = document.getElementById('rec-claim-ref').value;
+  }
+  await DataLayer.addDrivingRecord(activePersonId, fields);
+  cache = await DataLayer.refreshFromCloud();
+  showScreen('person-detail-screen');
+  renderPersonRecords();
+}
+
+async function showAccount(){
+  closeAnyPopover();
+  document.getElementById('account-email').textContent = DataLayer.getCurrentUserEmail();
+  document.getElementById('account-role').textContent = 'Role: ' + (DataLayer.getMyRole()||'—');
+  document.getElementById('account-joincode').textContent = DataLayer.getJoinCode() || '——————';
+  renderThemeGrid();
+  showScreen('account-screen');
+}
+function renderThemeGrid(){
+  const grid = document.getElementById('theme-grid');
+  const current = localStorage.getItem('mm-theme') || THEMES[0];
+  grid.innerHTML = THEMES.map(function(c){ return '<div class="theme-swatch '+(c===current?'selected':'')+'" style="background:'+c+'" onclick="selectTheme(\''+c+'\')"></div>'; }).join('');
+}
+function selectTheme(c){
+  localStorage.setItem('mm-theme', c);
+  document.documentElement.style.setProperty('--ink', c);
+  renderThemeGrid();
+}
+async function handleJoinHousehold(){
+  const code = document.getElementById('join-code-input').value.trim();
+  if(!code) return;
+  try{ await DataLayer.joinHousehold(code); cache = await DataLayer.refreshFromCloud(); showHome(); }
+  catch(e){ alert('Could not join: '+e.message); }
+}
+async function handleLeaveHousehold(){
+  if(!confirm('Leave this household? You will lose access to its vehicles and people.')) return;
+  alert('Leave-household for secondary households — wire up household selection here once multi-household switching UI exists.');
+}
+
+DataLayer.init(SUPABASE_URL, SUPABASE_ANON_KEY);
+DataLayer.onAuthChange(onAuthed);
+(function(){ const saved = localStorage.getItem('mm-theme'); if(saved) document.documentElement.style.setProperty('--ink', saved); })();
+</script>
+</body>
+</html>
