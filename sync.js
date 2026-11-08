@@ -30,34 +30,55 @@ function getCache() { return readCache(CACHE_KEY, { people: [], vehicles: [], re
 function setCache(c) { writeCache(CACHE_KEY, c); }
 
 // ── Init & auth ──────────────────────────────────────────────────
-function init(url, anonKey) {
-supabaseClient = window.supabase.createClient(url, anonKey);
+let authCb = null;
+function init() {
+supabaseClient = window.NeonCompat.client;
 window.addEventListener('online', flushQueue);
 return supabaseClient;
 }
 
-function onAuthChange(callback) {
-supabaseClient.auth.onAuthStateChange(async (event, session) => {
-currentUser = session ? session.user : null;
+async function setUser(user, event) {
+currentUser = user || null;
 if (currentUser) await bootstrapHousehold();
-callback(currentUser, event);
+if (authCb) authCb(currentUser, event);
+}
+
+function onAuthChange(callback) {
+authCb = callback;
+// The Neon library only announces sign-in/out to OTHER tabs, so this
+// file also calls setUser() itself after signIn/signOut below.
+supabaseClient.auth.onAuthStateChange(async (event, session) => {
+await setUser(session ? session.user : null, event);
 });
 supabaseClient.auth.getSession().then(async ({ data }) => {
-currentUser = data.session ? data.session.user : null;
-if (currentUser) await bootstrapHousehold();
-callback(currentUser, 'INITIAL_SESSION');
+const user = data.session ? data.session.user : null;
+if (!user && window.NeonCompat.recoveryToken()) { callback(null, 'PASSWORD_RECOVERY'); return; }
+await setUser(user, 'INITIAL_SESSION');
 });
 }
 
 async function signUp(email, password) { return supabaseClient.auth.signUp({ email, password }); }
-async function signIn(email, password) { return supabaseClient.auth.signInWithPassword({ email, password }); }
-async function signOut() { await supabaseClient.auth.signOut(); currentUser = null; householdId = null; myRole = null; }
+async function signIn(email, password) {
+const res = await supabaseClient.auth.signInWithPassword({ email, password });
+if (!res.error && res.data) {
+const user = (res.data.session && res.data.session.user) || res.data.user;
+if (user) await setUser(user, 'SIGNED_IN');
+}
+return res;
+}
+async function signOut() {
+await supabaseClient.auth.signOut();
+currentUser = null; householdId = null; myRole = null;
+if (authCb) authCb(null, 'SIGNED_OUT');
+}
 
 async function resetPasswordForEmail(email) {
 return supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
 }
 async function updatePassword(newPassword) {
-return supabaseClient.auth.updateUser({ password: newPassword });
+const res = await window.NeonCompat.resetPassword(newPassword);
+if (!res.error) { await supabaseClient.auth.signOut(); if (authCb) authCb(null, 'SIGNED_OUT'); }
+return res;
 }
 
 // Every user gets their own household automatically. This RPC is
@@ -338,8 +359,7 @@ await supabaseClient.from('household_members').delete().eq('household_id', house
 async function uploadDocument(vehicleId, category, file) {
 if (!navigator.onLine) throw new Error('Uploading a file needs an internet connection — can\'t be queued offline.');
 const path = `${householdId}/${vehicleId}/${Date.now()}-${file.name}`;
-const { error: uploadErr } = await supabaseClient.storage.from('documents').upload(path, file);
-if (uploadErr) throw uploadErr;
+await window.NeonCompat.storage.put(path, file, householdId);
 const doc = {
 id: crypto.randomUUID(), household_id: householdId, vehicle_id: vehicleId,
 category, file_name: file.name, storage_path: path, file_size: file.size,
@@ -354,16 +374,14 @@ setCache(cache);
 return doc;
 }
 async function getDocumentSignedUrl(storagePath) {
-const { data, error } = await supabaseClient.storage.from('documents').createSignedUrl(storagePath, 300);
-if (error) throw error;
-return data.signedUrl;
+return window.NeonCompat.storage.getUrl(storagePath);
 }
 async function deleteDocument(id) {
 if (myRole !== 'owner') throw new Error('Only the household owner can delete documents');
 const cache = getCache();
 const doc = (cache.documents || []).find(d => d.id === id);
 if (doc && navigator.onLine) {
-await supabaseClient.storage.from('documents').remove([doc.storage_path]);
+await window.NeonCompat.storage.remove(doc.storage_path);
 }
 await supabaseClient.from('documents').delete().eq('id', id);
 cache.documents = (cache.documents || []).filter(d => d.id !== id);

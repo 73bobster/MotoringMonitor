@@ -10,7 +10,8 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="neon.js"></script>
+<script src="neon-compat.js"></script>
 <style>
   :root{
     --paper:#F6F3EC; --paper-2:#EFEAE0; --ink:#20241F; --ink-soft:#5B5B54;
@@ -386,7 +387,7 @@
     </div>
     <div class="card">
       <p class="section-label">Terms &amp; conditions</p>
-      <p class="sub">For personal/household use. No PII beyond first names and optional contact details is collected. Data is stored in a private Supabase project accessible only to your household.</p>
+      <p class="sub">For personal/household use. No PII beyond first names and optional contact details is collected. Data is stored in a private Neon database accessible only to your household.</p>
     </div>
 
     <div class="card" style="border-color:var(--danger);">
@@ -401,8 +402,8 @@
 
 <script src="sync.js"></script>
 <script>
-const SUPABASE_URL = 'https://izqlirhiuzunwghwquog.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_GYHc9BeohzdBKNkEsY_ckA_kg0gDYCU';
+
+
 
 const THEMES = ['#20241F','#A8451F','#1B5560','#3E6B3A','#7A3117','#5B5B54','#153F47','#8A5A1F','#6B3E5C','#2E4A6B'];
 const BACKGROUNDS = ['#F6F3EC','#FFFFFF','#F2F1ED','#EFF2F1','#F4EFEA','#EDF1F4','#F1EFF4','#F0F3EE','#F5EEEC','#EEF0F5'];
@@ -444,7 +445,7 @@ async function handleSignUp(){
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
   const { error } = await DataLayer.signUp(email, password);
-  document.getElementById('auth-error').textContent = error ? error.message : 'Account created — check your email to confirm, then sign in above.';
+  document.getElementById('auth-error').textContent = error ? error.message : 'Account created — you can sign in now.';
 }
 async function handleForgotPassword(){
   const email = document.getElementById('auth-email').value;
@@ -1367,7 +1368,7 @@ async function handleLeaveHousehold(){
   alert('Leave-household for secondary households — wire up household selection here once multi-household switching UI exists.');
 }
 
-DataLayer.init(SUPABASE_URL, SUPABASE_ANON_KEY);
+DataLayer.init();
 DataLayer.onAuthChange(function(user, event){
   if(event === 'PASSWORD_RECOVERY'){ showScreen('reset-password-screen'); return; }
   onAuthed(user);
